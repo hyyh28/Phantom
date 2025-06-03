@@ -86,7 +86,7 @@ def call_api(model, message, system_prompt):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": message},
             ],
-            temperature=0.0,
+            temperature=0.6,
             max_tokens=1000,
         )
         return response.choices[0].message.content

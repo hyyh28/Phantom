@@ -1,160 +1,18 @@
-import sys
-
-import gymnasium as gym
-import matplotlib.pyplot as plt
-import numpy as np
 import phantom as ph
-
-
-NUM_EPISODE_STEPS = 100
-
-NUM_CUSTOMERS = 5
-CUSTOMER_MAX_ORDER_SIZE = 5
-SHOP_MAX_STOCK = 100
-
-
-@ph.msg_payload("CustomerAgent", "ShopAgent")
-class OrderRequest:
-    size: int
-
-
-@ph.msg_payload("ShopAgent", "CustomerAgent")
-class OrderResponse:
-    size: int
-
-
-@ph.msg_payload("ShopAgent", "FactoryAgent")
-class StockRequest:
-    size: int
-
-
-@ph.msg_payload("FactoryAgent", "ShopAgent")
-class StockResponse:
-    size: int
-
-
-class FactoryAgent(ph.Agent):
-    def __init__(self, agent_id: str):
-        super().__init__(agent_id)
-
-    @ph.agents.msg_handler(StockRequest)
-    def handle_stock_request(self, ctx: ph.Context, message: ph.Message):
-        # The factory receives stock request messages from shop agents. We simply
-        # reflect the amount of stock requested back to the shop as the factory can
-        # produce unlimited stock.
-        return [(message.sender_id, StockResponse(message.payload.size))]
-
-
-class CustomerAgent(ph.Agent):
-    def __init__(self, agent_id: ph.AgentID, shop_id: ph.AgentID):
-        super().__init__(agent_id)
-
-        # We need to store the shop's ID so we know who to send order requests to.
-        self.shop_id: str = shop_id
-
-    @ph.agents.msg_handler(OrderResponse)
-    def handle_order_response(self, ctx: ph.Context, message: ph.Message):
-        # The customer will receive it's order from the shop but we do not need to take
-        # any actions on it.
-        return
-
-    def generate_messages(self, ctx: ph.Context):
-        # At the start of each step we generate an order with a random size to send to
-        # the shop.
-        order_size = np.random.randint(CUSTOMER_MAX_ORDER_SIZE)
-
-        # We perform this action by sending a stock request message to the factory.
-        return [(self.shop_id, OrderRequest(order_size))]
-
-
-class ShopAgent(ph.StrategicAgent):
-    def __init__(self, agent_id: str, factory_id: str):
-        super().__init__(agent_id)
-
-        # We store the ID of the factory so we can send stock requests to it.
-        self.factory_id: str = factory_id
-
-        # We keep track of how much stock the shop has...
-        self.stock: int = 0
-
-        # ...and how many sales have been made...
-        self.sales: int = 0
-
-        # ...and how many sales per step the shop has missed due to not having enough
-        # stock.
-        self.missed_sales: int = 0
-
-        # = [Stock, Sales, Missed Sales]
-        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=(3,))
-
-        # = [Restock Quantity]
-        self.action_space = gym.spaces.Box(low=0.0, high=SHOP_MAX_STOCK, shape=(1,))
-
-    def pre_message_resolution(self, ctx: ph.Context):
-        # At the start of each step we reset the number of missed orders to 0.
-        self.sales = 0
-        self.missed_sales = 0
-
-    @ph.agents.msg_handler(StockResponse)
-    def handle_stock_response(self, ctx: ph.Context, message: ph.Message):
-        # Messages received from the factory contain stock.
-        self.delivered_stock = message.payload.size
-
-        self.stock = min(self.stock + self.delivered_stock, SHOP_MAX_STOCK)
-
-    @ph.agents.msg_handler(OrderRequest)
-    def handle_order_request(self, ctx: ph.Context, message: ph.Message):
-        amount_requested = message.payload.size
-
-        # If the order size is more than the amount of stock, partially fill the order.
-        if amount_requested > self.stock:
-            self.missed_sales += amount_requested - self.stock
-            stock_to_sell = self.stock
-            self.stock = 0
-        # ... Otherwise completely fill the order.
-        else:
-            stock_to_sell = amount_requested
-            self.stock -= amount_requested
-
-        self.sales += stock_to_sell
-
-        # Send the customer their order.
-        return [(message.sender_id, OrderResponse(stock_to_sell))]
-
-    def encode_observation(self, ctx: ph.Context):
-        max_sales_per_step = NUM_CUSTOMERS * CUSTOMER_MAX_ORDER_SIZE
-
-        return np.array(
-            [
-                self.stock / SHOP_MAX_STOCK,
-                self.sales / max_sales_per_step,
-                self.missed_sales / max_sales_per_step,
-            ],
-            dtype=np.float32,
-        )
-
-    def decode_action(self, ctx: ph.Context, action: np.ndarray):
-        # The action the shop takes is the amount of new stock to request from
-        # the factory, clipped so the shop never requests more stock than it can hold.
-        stock_to_request = min(int(round(action[0])), SHOP_MAX_STOCK - self.stock)
-
-        # We perform this action by sending a stock request message to the factory.
-        return [(self.factory_id, StockRequest(stock_to_request))]
-
-    def compute_reward(self, ctx: ph.Context) -> float:
-        # We reward the agent for making sales.
-        # We penalise the agent for holding onto excess stock.
-        return self.sales - 0.1 * self.stock
-
-    def reset(self):
-        self.stock = 0
+import json
+from typing import Optional
+from utils import format_environment_description
+from agent import FactoryAgent, CustomerAgent, ShopAgent, NUM_CUSTOMERS, NUM_EPISODE_STEPS
 
 
 class SupplyChainEnv(ph.PhantomEnv):
-    def __init__(self):
+    def __init__(self, config_file: Optional[str] = None):
+        # Store the config file path
+        self.config_file = config_file
+
         # Define agent IDs
         factory_id = "WAREHOUSE"
-        customer_ids = [f"CUST{i+1}" for i in range(NUM_CUSTOMERS)]
+        customer_ids = [f"CUST{i + 1}" for i in range(NUM_CUSTOMERS)]
         shop_id = "SHOP"
 
         factory_agent = FactoryAgent(factory_id)
@@ -174,9 +32,21 @@ class SupplyChainEnv(ph.PhantomEnv):
 
         super().__init__(num_steps=NUM_EPISODE_STEPS, network=network)
 
+        # Add environment description
+        self.env_description = self._build_description
 
-metrics = {
-    "SHOP/stock": ph.metrics.SimpleAgentMetric("SHOP", "stock", "mean"),
-    "SHOP/sales": ph.metrics.SimpleAgentMetric("SHOP", "sales", "mean"),
-    "SHOP/missed_sales": ph.metrics.SimpleAgentMetric("SHOP", "missed_sales", "mean"),
-}
+    @property
+    def _build_description(self) -> str:
+        """
+        Build a description of the environment using a configuration file if provided
+        
+        Returns:
+            str: A detailed description of the environment
+        """
+        with open(self.config_file, 'r') as f:
+            config = json.load(f)
+            return format_environment_description(config)
+
+
+env = SupplyChainEnv(config_file="example_env.json")
+env.reset()

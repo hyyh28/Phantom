@@ -1,0 +1,67 @@
+{
+    "name": "Supply Chain Environment",
+    "description": "A simulation of a supply chain with a factory, shop, and customers",
+    "parameters": {
+        "episode_steps": 100,
+        "num_customers": 10,
+        "customer_max_order_size": 20,
+        "shop_max_stock": 100
+    },
+    "agents": [
+        {
+            "type": "Factory",
+            "id": "WAREHOUSE",
+            "count": 1,
+            "description": "Produces unlimited stock to supply the shop",
+            "actions": ["Fulfill stock requests from the shop"]
+        },
+        {
+            "type": "Shop",
+            "id": "SHOP",
+            "count": 1,
+            "description": "Orders stock from the factory and sells to customers",
+            "constraints": ["Maximum stock capacity: 100"],
+            "actions": ["Process customer orders", "Request stock from factory"],
+            "reward_function": "sales - 0.1 * inventory"
+        },
+        {
+            "type": "Customer",
+            "id": "CUST[1-10]",
+            "count": 10,
+            "description": "Places orders to the shop",
+            "constraints": ["Maximum order size: 20"],
+            "actions": ["Send random-sized orders to the shop"]
+        }
+    ],
+    "message_flow": [
+        {
+            "message": "OrderRequest",
+            "from": "Customer",
+            "to": "Shop",
+            "description": "Customer requests to purchase items from the shop"
+        },
+        {
+            "message": "OrderResponse",
+            "from": "Shop",
+            "to": "Customer",
+            "description": "Shop fulfills customer order (partially or completely)"
+        },
+        {
+            "message": "StockRequest",
+            "from": "Shop",
+            "to": "Factory",
+            "description": "Shop requests inventory restock from factory"
+        },
+        {
+            "message": "StockResponse",
+            "from": "Factory",
+            "to": "Shop",
+            "description": "Factory delivers requested inventory to shop"
+        }
+    ],
+    "challenges": [
+        "Balancing inventory levels to minimize holding costs while avoiding stockouts",
+        "Predicting customer demand patterns",
+        "Optimizing order quantities to maximize profit"
+    ]
+}
