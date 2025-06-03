@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple, Type
+
+from numpy import ndarray
+
 from model import call_api
 from llm_logger import LLMLogger
 
@@ -327,7 +330,7 @@ class AgentController:
         self.agent_description = agent_description
 
     def get_action(self, observation: np.ndarray, agent_state: Any,
-                   step: int, action_space: Any) -> np.ndarray:
+                   step: int, action_space: Any) -> list[ndarray]:
         """
         Get an action from the decision strategy.
         
@@ -363,7 +366,7 @@ class AgentController:
         # Get action from decision strategy
         action = self.decision_strategy.make_decision(context)
 
-        return action
+        return [action]
 
     def reset(self) -> None:
         """Reset the agent controller"""
@@ -497,16 +500,15 @@ def run_llm_agent_simulation(env_class, model="gpt-4o", num_episodes=1, num_step
 
         # Get action from agent_controller
         for step in range(num_steps):
-            actions = []
+            actions = {}
             for agent in agents_name:
-                actions.append(agents_controllers[agents_name.index(agent)].get_action(
+                actions[agent] = agents_controllers[agents_name.index(agent)].get_action(
                     observation=state[agent],
                     agent_state=env.agents[agent],
                     step=step,
                     action_space=env.agents[agent].action_space
-                ))
-
-            # Execute action in environment
+                )
+            # Execute action in the environment
             state, reward, done, info, _ = env.step(actions)
             for agent in agents_name:
                 total_reward[agent] += reward[agent]
@@ -532,13 +534,13 @@ if __name__ == "__main__":
 
     agent_roles = ['ShopAgent']
     agent_names = ['SHOP']
-    agents_personality = ['strategic']
+    agents_personality = ['Rational']
     # Run simulation with default parameters
     run_llm_agent_simulation(
         env_class=SupplyChainEnv,
         model="deepseek",
         num_episodes=1,
-        num_steps=10,
+        num_steps=100,
         agents_personality=agents_personality
     )
     logger.save_summary()
