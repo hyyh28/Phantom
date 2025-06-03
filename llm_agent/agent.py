@@ -70,7 +70,7 @@ class LLMDecisionStrategy(DecisionStrategy):
         except Exception as e:
             print(f"LLM decision failed: {e}. Using fallback strategy.")
             return self._fallback_strategy(context)
-    
+
     def _generate_system_prompt(self, agent_profile: Dict[str, Any], action_space: Any) -> str:
         """Generate a system prompt based on agent profile and action space"""
         # Customize prompt based on agent role
@@ -474,12 +474,12 @@ def run_llm_agent_simulation(env_class, model="gpt-4o", num_episodes=1, num_step
 
 # Usage example
 if __name__ == "__main__":
-    from examples.environments.supply_chain.supply_chain import SupplyChainEnv
+    from example_env import SupplyChainEnv
     
     # Run simulation with default parameters
     run_llm_agent_simulation(
         env_class=SupplyChainEnv,
-        model="gpt-4o",
+        model="deepseek",
         num_episodes=1,
         num_steps=100,
         agent_role="supply chain manager",

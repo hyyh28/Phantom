@@ -180,11 +180,3 @@ metrics = {
     "SHOP/sales": ph.metrics.SimpleAgentMetric("SHOP", "sales", "mean"),
     "SHOP/missed_sales": ph.metrics.SimpleAgentMetric("SHOP", "missed_sales", "mean"),
 }
-
-
-env = SupplyChainEnv()
-state = env.reset()
-for i in range(NUM_EPISODE_STEPS):
-    action = env.agents['SHOP'].action_space.sample()
-    state, reward, done, info, _ = env.step([action])
-    print(state, reward, done, info)
