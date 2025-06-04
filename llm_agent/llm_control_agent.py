@@ -534,13 +534,13 @@ if __name__ == "__main__":
 
     agent_roles = ['ShopAgent']
     agent_names = ['SHOP']
-    agents_personality = ['Rational']
+    agents_personality = ['Self-Interested']
     # Run simulation with default parameters
     run_llm_agent_simulation(
         env_class=SupplyChainEnv,
         model="deepseek",
         num_episodes=1,
-        num_steps=100,
+        num_steps=50,
         agents_personality=agents_personality
     )
     logger.save_summary()

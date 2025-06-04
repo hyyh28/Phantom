@@ -1,6 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import phantom as ph
+from model import call_api
 
 NUM_EPISODE_STEPS = 100
 
@@ -61,6 +62,34 @@ class CustomerAgent(ph.Agent):
 
         # We perform this action by sending a stock request message to the factory.
         return [(self.shop_id, OrderRequest(order_size))]
+
+
+class LLMCustomerAgent(CustomerAgent):
+    def __init__(self, agent_id: ph.AgentID, shop_id: ph.AgentID, personality: str, model: str = "sonnet"):
+        super().__init__(agent_id, shop_id)
+        self.personality = personality
+        self.model = model
+        self.agent_description = f"""You are a customer with the following personality: {personality}. 
+        You need to decide how much to order from a shop that sells items. The maximum order size is {CUSTOMER_MAX_ORDER_SIZE}.
+        You should make ordering decisions based on your personality traits."""
+
+    def generate_messages(self, ctx: ph.Context):
+        # Generate prompt for LLM to decide order size
+        prompt = f"Based on your personality, how many items would you order? Maximum order size is {CUSTOMER_MAX_ORDER_SIZE}. Respond with just a number."
+
+        # Get order size from LLM
+        response = call_api(self.model, prompt, self.agent_description)
+        try:
+            order_size = min(int(response), CUSTOMER_MAX_ORDER_SIZE)
+        except (ValueError, TypeError):
+            order_size = np.random.randint(CUSTOMER_MAX_ORDER_SIZE)
+
+        return [(self.shop_id, OrderRequest(order_size))]
+
+    @ph.agents.msg_handler(OrderResponse)
+    def handle_order_response(self, ctx: ph.Context, message: ph.Message):
+        # The LLM customer receives an order response but doesn't need to take action
+        return
 
 
 class ShopAgent(ph.StrategicAgent):
