@@ -42,6 +42,7 @@ class FactoryAgent(ph.Agent):
         return [(message.sender_id, StockResponse(message.payload.size))]
 
 
+
 class CustomerAgent(ph.Agent):
     def __init__(self, agent_id: ph.AgentID, shop_id: ph.AgentID):
         super().__init__(agent_id)
@@ -174,3 +175,94 @@ class ShopAgent(ph.StrategicAgent):
 
     def reset(self):
         self.stock = 0
+
+
+class DistributorAgent(ph.Agent):
+    def __init__(self, agent_id: str):
+        super().__init__(agent_id)
+        self.agent_description = """You are the DistributorAgent. You are responsible for distributing items from the factory to the customers. You are responsible for making sure that the customers receive the items they ordered."""
+        self.current_stock = 0
+
+    def receive_stock(self, ctx: ph.Context, stock: int):
+        self.current_stock += stock
+        return
+
+    def distribute_stock(self, ctx: ph.Context, customer_id: str, order_size: int):
+        count_to_distribute = min(order_size, self.current_stock)
+        self.current_stock -= count_to_distribute
+        return [(customer_id, OrderResponse(count_to_distribute))]
+
+
+class ManufacturingAgent(ph.Agent):
+    def __init__(self, agent_id: str):
+        super().__init__(agent_id)
+        self.agent_description = """You are the ManufacturingAgent. You are responsible for producing items from the factory. You are responsible for making sure that the customers receive the items they ordered."""
+        self.material_stock = 0
+        self.product_stock = 0
+
+    def receive_material_stock(self, ctx: ph.Context, stock: int):
+        self.material_stock += stock
+        return
+
+    def manufacture_product(self, ctx: ph.Context, order_size: int):
+        count_to_manufacture = min(order_size, self.material_stock)
+        self.material_stock -= count_to_manufacture
+        return [(self.product_stock, OrderResponse(count_to_manufacture))]
+
+    def send_product_stock(self, ctx: ph.Context, customer_id: str, order_size: int):
+        count_to_send = min(order_size, self.product_stock)
+        self.product_stock -= count_to_send
+        return [(customer_id, OrderResponse(count_to_send))]
+
+
+class ProducreAgent(ph.Agent):
+    def __init__(self, agent_id: str):
+        super().__init__(agent_id)
+        self.agent_description = """You are the ProducreAgent. You are responsible for producing items from the factory. You are responsible for making sure that the customers receive the items they ordered."""
+        self.product_stock = 0
+
+    def supply_product(self, ctx: ph.Context, order_size: int):
+        count_to_supply = min(order_size, self.product_stock)
+        self.product_stock -= count_to_supply
+        return [(self.product_stock, OrderResponse(count_to_supply))]
+
+    def receive_product_stock(self, ctx: ph.Context, stock: int):
+        self.product_stock += stock
+        return
+
+
+class RetailAgent(ph.Agent):
+    def __init__(self, agent_id: str):
+        super().__init__(agent_id)
+        self.agent_description = """You are the RetailAgent. You are responsible for selling items to the customers. You are responsible for making sure that the customers receive the items they ordered."""
+        self.product_stock = 0
+
+    def receive_product_stock(self, ctx: ph.Context, stock: int):
+        self.product_stock += stock
+        return
+
+    def sell_product(self, ctx: ph.Context, order_size: int):
+        count_to_sell = min(order_size, self.product_stock)
+        self.product_stock -= count_to_sell
+        return [(self.product_stock, OrderResponse(count_to_sell))]
+
+
+class TransAgent(ph.Agent):
+    def __init__(self, agent_id: str):
+        super().__init__(agent_id)
+        self.agent_description = """You are the TransAgent. You are responsible for transferring items from the factory to the customers. You are responsible for making sure that the customers receive the items they ordered."""
+        self.product_stock = 0
+
+    def receive_product_stock(self, ctx: ph.Context, stock: int):
+        self.product_stock += stock
+        return
+
+    def deliver_product(self, ctx: ph.Context, order_size: int):
+        count_to_deliver = min(order_size, self.product_stock)
+        self.product_stock -= count_to_deliver
+        return [(self.product_stock, OrderResponse(count_to_deliver))]
+
+    def realease_product(self, ctx: ph.Context, order_size: int):
+        count_to_release = min(order_size, self.product_stock)
+        self.product_stock -= count_to_release
+        return [(self.product_stock, OrderResponse(count_to_release))]
