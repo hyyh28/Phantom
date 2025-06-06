@@ -42,7 +42,6 @@ class FactoryAgent(ph.Agent):
         return [(message.sender_id, StockResponse(message.payload.size))]
 
 
-
 class CustomerAgent(ph.Agent):
     def __init__(self, agent_id: ph.AgentID, shop_id: ph.AgentID):
         super().__init__(agent_id)
