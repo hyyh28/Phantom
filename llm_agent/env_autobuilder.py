@@ -311,9 +311,9 @@ if __name__ == "__main__":
     # Example usage
     description = """
 1. Entities
-* Factory (non-learning) – Produces goods upon request from the shop.
-* Shop (learning) – Maintains inventory and decides how much to order from the factory.
-* Customers (non-learning) – Generate demand stochastically each time step.
+* 1 Factory(NAME: WAREHOUSE) (non-learning) – Produces goods upon request from the shop.
+* 1 Shop(Name: SHOP) (learning) – Maintains inventory and decides how much to order from the factory.
+* 5 Customers(Name: CUST_1 to CUST_5) (non-learning) – Generate demand stochastically each time step.
 
 2. Relationships Between Entities
 * Shop places orders to Factory, which delivers after a fixed lead time.
