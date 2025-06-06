@@ -1,6 +1,7 @@
 import anthropic
 import time
 from openai import OpenAI
+from textgrad.engine.local_model_openai_api import ChatExternalClient
 
 # data generation close-source models #######
 claude_key = None
@@ -160,3 +161,10 @@ def close_source_call(model, message, system_prompt):
     elif model == "deepseek":
         result = call_deepseek_api(message, system_prompt)
     return result
+
+
+def build_deepseek_grad_engine():
+    client = OpenAI(base_url="https://api.deepseek.com/v1", api_key=deepseek_key)
+    return ChatExternalClient(
+        client=client,
+        model_string="deepseek-chat")

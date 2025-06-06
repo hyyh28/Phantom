@@ -1,10 +1,7 @@
 import json
-import os
-import numpy as np
 from typing import Dict, Any, List, Optional, Tuple, Union
 import phantom as ph
-import gymnasium as gym
-from model import call_api
+from model import call_api, build_deepseek_grad_engine
 
 # Import message payloads and agent classes from agent.py
 from agent import (
@@ -151,6 +148,8 @@ Return only the JSON object without any additional text.
 
         # Generate environment parameters
         params = self.generate_environment_init_params(env_spec)
+        # check(params)
+
 
         # Create and return the environment
         return SupplyChainEnv(params)
