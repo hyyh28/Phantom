@@ -182,3 +182,22 @@ The LLM Agent parses the environment description and returns the following struc
   }
 }
 ```
+```mermaid
+graph TD
+    %% Define entities
+    Warehouse[WAREHOUSE<br>Role: Produces goods upon request<br>Type: Non-learning<br>Class: Factory]
+    Shop[SHOP<br>Role: Maintains inventory and orders<br>Type: Learning<br>Class: Shop<br>Decision: How much to order<br>Goal: Minimize total costs]
+    Cust1[CUST_1<br>Role: Generates stochastic demand<br>Type: Non-learning<br>Class: Customer]
+    Cust2[CUST_2<br>Role: Generates stochastic demand<br>Type: Non-learning<br>Class: Customer]
+    Cust3[CUST_3<br>Role: Generates stochastic demand<br>Type: Non-learning<br>Class: Customer]
+    Cust4[CUST_4<br>Role: Generates stochastic demand<br>Type: Non-learning<br>Class: Customer]
+    Cust5[CUST_5<br>Role: Generates stochastic demand<br>Type: Non-learning<br>Class: Customer]
+
+    %% Relationships
+    Shop -->|Order<br>Delivers after lead time| Warehouse
+    Cust1 -->|Purchase| Shop
+    Cust2 -->|Purchase| Shop
+    Cust3 -->|Purchase| Shop
+    Cust4 -->|Purchase| Shop
+    Cust5 -->|Purchase| Shop
+```
