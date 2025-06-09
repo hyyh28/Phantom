@@ -2,6 +2,7 @@ import json
 from typing import Dict, Any, List, Optional, Tuple, Union
 import phantom as ph
 from model import call_api, build_deepseek_grad_engine
+import textgrad as tg
 
 # Import message payloads and agent classes from agent.py
 from agent import (
@@ -92,20 +93,82 @@ Environment description:
 
 Return only the JSON object without any additional text.
 """
-        # Call LLM to parse the description
-        response = call_api(self.model, prompt, SYSTEM_PROMPT)
+        # initilize textgrad engine
+        engine = build_deepseek_grad_engine()
+        tg.set_backward_engine(engine=engine, override=True)
+        model = tg.BlackboxLLM(engine)
 
-        # Extract JSON from response
+        # input question
+        question = tg.Variable(prompt, role_description=SYSTEM_PROMPT, requires_grad=False)
+
+        # initilized results x_0
+        response = model(question)
+        response.set_role_description("JSON structured environment specification")
+        response.requires_grad = True
+
+        # vertify the results in Json
         try:
-            # Find JSON boundaries (in case there's extra text)
-            start_idx = response.find('{')
-            end_idx = response.rfind('}')
+            start_idx = response.value.find('{')
+            end_idx = response.value.rfind('}')
 
             if start_idx == -1 or end_idx == -1:
                 raise ValueError("Could not find valid JSON in LLM response")
 
-            json_str = response[start_idx:end_idx + 1]
+            json_str = response.value[start_idx:end_idx + 1]
+            parsed_json = json.loads(json_str)
+            params = self.generate_environment_init_params(parsed_json)
+            errors_list = check_params(params)
+
+            # use textgrad to update the results
+            if errors_list:
+                errors = "\n".join(errors_list)
+                print(errors)
+                # optimizer
+                optimizer = tg.TGD(parameters=[response])
+
+                # create evaluation_instruction
+                evaluation_instruction = tg.Variable(
+                    f"Here's the environment description: {description}\n\n"
+                    f"The current JSON response has the following errors:\n{errors}\n\n"
+                    f"Fix these errors in the JSON structure without changing its format. "
+                    f"Make sure all agent classes are valid and relationships are properly defined.",
+                    role_description=SYSTEM_PROMPT,
+                    requires_grad=False
+                )
+
+                # create loss function
+                loss_fn = tg.TextLoss(evaluation_instruction)
+
+                # optimization loop
+                for _ in range(3):
+                    loss = loss_fn(response)
+                    loss.backward()
+                    optimizer.step()
+
+                    # recheck errors
+                    try:
+                        start_idx = response.value.find('{')
+                        end_idx = response.value.rfind('}')
+                        if start_idx != -1 and end_idx != -1:
+                            json_str = response.value[start_idx:end_idx + 1]
+                            parsed_json = json.loads(json_str)
+                            params = self.generate_environment_init_params(parsed_json)
+                            new_errors = check_params(params)
+                            if not new_errors:
+                                break
+                    except:
+                        pass
+
+            # get the final results
+            start_idx = response.value.find('{')
+            end_idx = response.value.rfind('}')
+
+            if start_idx == -1 or end_idx == -1:
+                raise ValueError("Could not find valid JSON in optimized LLM response")
+
+            json_str = response.value[start_idx:end_idx + 1]
             return json.loads(json_str)
+
         except Exception as e:
             raise ValueError(f"Failed to parse LLM response: {str(e)}")
 
@@ -150,9 +213,47 @@ Return only the JSON object without any additional text.
         params = self.generate_environment_init_params(env_spec)
         # check(params)
 
-
         # Create and return the environment
         return SupplyChainEnv(params)
+
+
+def check_params(params: Dict[str, Any] = None):
+    errors = []
+    params = params
+    entities = params.get("entities", [])
+    relationships = params.get("relationships", [])
+
+    # Agent class mapping
+    agent_classes = {
+        "Factory": FactoryAgent,
+        "Customer": CustomerAgent,
+        "LLMCustomer": LLMCustomerAgent,
+        "Shop": ShopAgent,
+        "Distributor": DistributorAgent,
+        "Manufacturing": ManufacturingAgent,
+        "Producer": ProducreAgent,
+        "Retail": RetailAgent,
+        "Transport": TransAgent
+    }
+    # Create all agents
+    for entity in entities:
+        name = entity["name"]
+        agent_class_name = entity.get("agent_class", "")
+        if agent_class_name not in agent_classes:
+            errors.append(f"Unknown agent class: {agent_class_name}")
+        elif agent_class_name == "Customer" or agent_class_name == "LLMCustomer":
+            shop_connections = [r for r in relationships
+                                if r["source"] == name and "shop" in r["target"].lower()]
+            shop_id = shop_connections[0]["target"] if shop_connections else None
+            if not shop_id:
+                errors.append(f"Customer {name} has no shop connection defined")
+        elif agent_class_name == "Shop":
+            factory_connections = [r for r in relationships
+                                   if r["source"] == name and "warehouse" in r["target"].lower()]
+            factory_id = factory_connections[0]["target"] if factory_connections else None
+            if not factory_id:
+                errors.append(f"Shop {name} has no factory connection defined")
+    return errors
 
 
 class SupplyChainEnv(ph.PhantomEnv):
@@ -225,7 +326,7 @@ class SupplyChainEnv(ph.PhantomEnv):
             elif agent_class_name == "Shop":
                 # Find factory connection
                 factory_connections = [r for r in self.relationships
-                                       if r["source"] == name and "factory" in r["target"].lower()]
+                                       if r["source"] == name and "warehouse" in r["target"].lower()]
                 factory_id = factory_connections[0]["target"] if factory_connections else None
 
                 if not factory_id:
@@ -316,7 +417,7 @@ if __name__ == "__main__":
 
 2. Relationships Between Entities
 * Shop places orders to Factory, which delivers after a fixed lead time.
-* Shop serves Customers from its inventory.
+* Customers interact with any shop to purchase products.
 * Unmet demand may result in backlogs or lost sales.
 * Shop updates its inventory policy via learning.
 
