@@ -261,7 +261,7 @@ class SupplyChainEnv(ph.PhantomEnv):
     A Phantom environment for supply chain simulations built from a specification.
     """
 
-    def __init__(self, config: Dict[str, Any], num_steps: int = DEFAULT_STEPS):
+    def __init__(self, config: Dict[str, Any], num_steps: int = DEFAULT_STEPS, entities=None, relationships=None, objective=None):
         """
         Initialize the supply chain environment
 
