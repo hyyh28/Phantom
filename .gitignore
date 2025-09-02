@@ -144,3 +144,4 @@ dmypy.json
 # IDEA
 .idea
 /llm_agent/llm_agent_log/
+/Phantom-ENV
