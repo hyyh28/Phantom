@@ -9,7 +9,6 @@ numpy~=1.26.4
 pathlib~=1.0.1
 pandas~=2.2.3
 networkx~=3.4.2
-phantom~=2.2.0
 matplotlib~=3.10.1
 setuptools~=75.8.0
 openai~=1.68.2
